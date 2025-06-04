@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import useStockData from '../hooks/useStockData';
+import useCurrentStock from '../hooks/useCurrentStock';
 import '../styles/StockDetail.css';
 
 const StockDetail = () => {
   const { id } = useParams();
-  const { currentStock, isConnected, error } = useStockData(id);
+  const { currentStock, isConnected, error } = useCurrentStock(id);
   const queryClient = useQueryClient();
   
-  const { data: cachedStock } = useQuery({
+  const { data: stockToDisplay } = useQuery({
     queryKey: ['stock', id],
     queryFn: () => currentStock,
     enabled: !!currentStock && !!id,
@@ -26,11 +26,14 @@ const StockDetail = () => {
 
   // if (!isConnected) return <div className="loading">Connecting to WebSocket server...</div>;
   // if (error) return <div className="error">Error: {error}</div>;
-  const stockToDisplay = cachedStock || currentStock;
   if (!stockToDisplay) return <div className="loading">Loading stock data...</div>;
 
-  const changeClass = stockToDisplay.change >= 0 ? 'positive' : 'negative';
-  const changeSign = stockToDisplay.change >= 0 ? '+' : '';
+
+  const changeData = stockToDisplay.changeFormatted || {
+    changeClass: stockToDisplay.change >= 0 ? 'positive' : 'negative',
+    changeSign: stockToDisplay.change >= 0 ? '+' : '',
+    formatted: (stockToDisplay.change || 0).toFixed(2)
+  };
 
   return (
     <div className="stock-detail-container">
@@ -45,28 +48,28 @@ const StockDetail = () => {
         
         <div className="stock-detail-main">
           <div className="stock-price-container">
-            <div className="current-price">${stockToDisplay.price.toFixed(2)}</div>
-            <div className={`price-change ${changeClass}`}>
-              {changeSign}{stockToDisplay.change.toFixed(2)} ({changeSign}{((stockToDisplay.change / stockToDisplay.price) * 100).toFixed(2)}%)
+            <div className="current-price">{stockToDisplay.priceFormatted || `$${(stockToDisplay.price || 0).toFixed(2)}`}</div>
+            <div className={`price-change ${changeData.changeClass}`}>
+              {changeData.changeSign}{changeData.formatted} ({changeData.changeSign}{(((stockToDisplay.change || 0) / (stockToDisplay.price || 1)) * 100).toFixed(2)}%)
             </div>
           </div>
 
           <div className="stock-stats">
             <div className="stat-item">
               <div className="stat-label">Last</div>
-              <div className="stat-value">${stockToDisplay.last.toFixed(2)}</div>
+              <div className="stat-value">{stockToDisplay.lastFormatted || `$${(stockToDisplay.last || 0).toFixed(2)}`}</div>
             </div>
             <div className="stat-item">
               <div className="stat-label">High</div>
-              <div className="stat-value">${stockToDisplay.high.toFixed(2)}</div>
+              <div className="stat-value">{stockToDisplay.highFormatted || `$${(stockToDisplay.high || 0).toFixed(2)}`}</div>
             </div>
             <div className="stat-item">
               <div className="stat-label">Low</div>
-              <div className="stat-value">${stockToDisplay.low.toFixed(2)}</div>
+              <div className="stat-value">{stockToDisplay.lowFormatted || `$${(stockToDisplay.low || 0).toFixed(2)}`}</div>
             </div>
             <div className="stat-item">
               <div className="stat-label">Volume</div>
-              <div className="stat-value">{stockToDisplay.volume.toLocaleString()}</div>
+              <div className="stat-value">{stockToDisplay.volumeFormatted || (stockToDisplay.volume || 0).toLocaleString()}</div>
             </div>
           </div>
         </div>

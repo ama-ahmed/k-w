@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const useStockData = (id = null) => {
-  const [stocksData, setStocksData] = useState([]);
+const useCurrentStock = (id) => {
   const [currentStock, setCurrentStock] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const workerRef = useRef(null);
   const stockFinderWorkerRef = useRef(null);
+  const formatterWorkerRef = useRef(null);
   const currentStockRef = useRef(null);
 
   const connect = useCallback(() => {
@@ -20,7 +20,6 @@ const useStockData = (id = null) => {
       
       ws.onmessage = (event) => {
         if (workerRef.current) {
-          
           workerRef.current.postMessage({
             data: event.data
           });
@@ -36,8 +35,6 @@ const useStockData = (id = null) => {
         setIsConnected(false);
       };
       
-
-      
       return ws;
     } catch (err) {
       setError(`Failed to connect: ${err.message}`);
@@ -45,25 +42,22 @@ const useStockData = (id = null) => {
     }
   }, []);
 
-
-
   useEffect(() => {
+    if (!id) return;
+
     workerRef.current = new Worker(new URL('../workers/jsonParser.js', import.meta.url));
     stockFinderWorkerRef.current = new Worker(new URL('../workers/stockFinder.js', import.meta.url));
+    formatterWorkerRef.current = new Worker(new URL('../workers/dataFormatter.js', import.meta.url));
     
     workerRef.current.onmessage = (e) => {
       const { success, data, error } = e.data;
-      if (success) {
-        setStocksData(data);
-        
-        if (id && stockFinderWorkerRef.current) {
-          stockFinderWorkerRef.current.postMessage({
-            currentStock: currentStockRef.current,
-            stocksData: data,
-            id: id
-          });
-        }
-      } else {
+      if (success && stockFinderWorkerRef.current) {
+        stockFinderWorkerRef.current.postMessage({
+          currentStock: currentStockRef.current,
+          stocksData: data,
+          id: id
+        });
+      } else if (!success) {
         setError(`Failed to parse data: ${error}`);
       }
     };
@@ -71,8 +65,20 @@ const useStockData = (id = null) => {
     stockFinderWorkerRef.current.onmessage = (e) => {
       const { stock, hasChanged } = e.data;
       if (hasChanged) {
-        currentStockRef.current = stock;
-        setCurrentStock(stock);
+        formatterWorkerRef.current.postMessage({
+          stocksData: [stock],
+        });
+      }
+    };
+    
+    formatterWorkerRef.current.onmessage = (e) => {
+      const { success, data, error } = e.data;
+      if (success && data.length > 0) {
+        const formattedStock = data[0];
+        currentStockRef.current = formattedStock;
+        setCurrentStock(formattedStock);
+      } else if (!success) {
+        setError(`Failed to format stock data: ${error}`);
       }
     };
     
@@ -88,11 +94,13 @@ const useStockData = (id = null) => {
       if (stockFinderWorkerRef.current) {
         stockFinderWorkerRef.current.terminate();
       }
+      if (formatterWorkerRef.current) {
+        formatterWorkerRef.current.terminate();
+      }
     };
   }, [connect, id]);
 
   return {
-    stocksData,
     currentStock,
     isConnected,
     error,
@@ -100,4 +108,4 @@ const useStockData = (id = null) => {
   };
 };
 
-export default useStockData;
+export default useCurrentStock;

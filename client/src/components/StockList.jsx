@@ -2,52 +2,50 @@ import { Link } from 'react-router-dom';
 import { useRef, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useReactTable, getCoreRowModel } from '@tanstack/react-table';
-import useStockData from '../hooks/useStockData';
+import useAllStocksData from '../hooks/useAllStocksData';
 import '../styles/StockList.css';
 import StockRow from './StockRow';
 
 
 const StockList = () => {
-  const { stocksData, isConnected, error } = useStockData();
+  const { stocksData, isConnected, error } = useAllStocksData();
   const parentRef = useRef(null);
   
   const columns = useMemo(
     () => [
       { accessorKey: 'id', header: 'ID' },
       { 
-        accessorKey: 'last', 
+        accessorKey: 'lastFormatted', 
         header: 'Last',
-        cell: info => `$${info.getValue().toFixed(2)}` 
+        cell: info => info.getValue()
       },
       { 
-        accessorKey: 'high', 
+        accessorKey: 'highFormatted', 
         header: 'High',
-        cell: info => `$${info.getValue().toFixed(2)}` 
+        cell: info => info.getValue()
       },
       { 
-        accessorKey: 'low', 
+        accessorKey: 'lowFormatted', 
         header: 'Low',
-        cell: info => `$${info.getValue().toFixed(2)}` 
+        cell: info => info.getValue()
       },
       { 
-        accessorKey: 'change', 
+        accessorKey: 'changeFormatted', 
         header: 'Change',
         cell: info => {
-          const value = info.getValue();
-          const changeClass = value >= 0 ? 'positive' : 'negative';
-          const changeSign = value >= 0 ? '+' : '';
-          return <span className={changeClass}>{changeSign}{value.toFixed(2)}</span>;
+          const changeData = info.row.original.changeFormatted;
+          return <span className={changeData.changeClass}>{changeData.changeSign}{changeData.formatted}</span>;
         }
       },
       { 
-        accessorKey: 'volume', 
+        accessorKey: 'volumeFormatted', 
         header: 'Volume',
-        cell: info => info.getValue().toLocaleString() 
+        cell: info => info.getValue()
       },
       { 
-        accessorKey: 'price', 
+        accessorKey: 'priceFormatted', 
         header: 'Price',
-        cell: info => `$${info.getValue().toFixed(2)}` 
+        cell: info => info.getValue()
       },
       { 
         accessorKey: 'id', 
